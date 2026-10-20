@@ -3,7 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Her World – Virtual Nightlife Lounge</title>
+  <meta name="theme-color" content="#0a0a0f" />
+  <meta name="description" content="Premium virtual nightlife lounge. Explore glamorous rooms, tip, flirt, and chat in style." />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Her World" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="icon" href="/icon-192.png" type="image/png" />
+  <link rel="apple-touch-icon" href="/icon-192.png" />
   <style>
     :root {
       --bg: #0a0a0f;
@@ -842,6 +849,10 @@
       t.textContent = msg;
       t.classList.add('show');
       setTimeout(function() { t.classList.remove('show'); }, 2600);
+    }
+
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch(function () {});
     }
 
     init();
