@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Her World – Virtual Nightlife Lounge</title>
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --bg2: #12121a;
+      --card: #1a1a25;
+      --gold: #d4af37;
+      --gold-light: #f0d78c;
+      --neon: #ff6b9d;
+      --neon-soft: #ff8fb3;
+      --text: #f5f5f7;
+      --text-dim: #a0a0b0;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .screen {
+      display: none;
+      min-height: 100vh;
+      flex-direction: column;
+      padding: 16px;
+      animation: fadeIn 0.4s ease;
+    }
+    .screen.active { display: flex; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    #title-screen {
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      background: radial-gradient(ellipse at center, #1a1025 0%, #0a0a0f 70%);
+      position: relative;
+      overflow: hidden;
+    }
+    #title-screen::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 20% 30%, rgba(212,175,55,0.08) 0%, transparent 40%),
+        radial-gradient(circle at 80% 70%, rgba(255,107,157,0.06) 0%, transparent 40%);
+      pointer-events: none;
+    }
+    .title-logo {
+      font-size: clamp(2.6rem, 9vw, 4.2rem);
+      font-weight: 300;
+      letter-spacing: 0.12em;
+      background: linear-gradient(135deg, var(--gold-light), var(--gold), #b8860b);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 8px;
+    }
+    .title-sub {
+      color: var(--text-dim);
+      font-size: 0.95rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      margin-bottom: 40px;
+    }
+    .particles { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+    .particle {
+      position: absolute; width: 3px; height: 3px;
+      background: var(--gold); border-radius: 50%; opacity: 0.4;
+      animation: float 12s infinite linear;
+    }
+    @keyframes float {
+      0% { transform: translateY(100vh) scale(0); opacity: 0; }
+      10% { opacity: 0.5; }
+      90% { opacity: 0.3; }
+      100% { transform: translateY(-10vh) scale(1); opacity: 0; }
+    }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 14px 28px; border: none; border-radius: 12px;
+      font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.2s;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--gold), #b8860b);
+      color: #1a1a1a; box-shadow: 0 4px 20px rgba(212,175,55,0.35);
+    }
+    .btn-primary:active { transform: translateY(-1px); }
+    .btn-secondary {
+      background: var(--card); color: var(--text);
+      border: 1px solid rgba(212,175,55,0.35);
+    }
+    .btn-neon {
+      background: linear-gradient(135deg, var(--neon), #e85a8a);
+      color: white; box-shadow: 0 4px 18px rgba(255,107,157,0.35);
+    }
+    .btn-small { padding: 10px 16px; font-size: 0.9rem; border-radius: 10px; }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .top-bar {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 8px 0 16px; gap: 10px;
+    }
+    .token-display {
+      display: flex; align-items: center; gap: 6px;
+      background: var(--card); padding: 7px 14px; border-radius: 20px;
+      border: 1px solid rgba(212,175,55,0.3); font-weight: 600; color: var(--gold-light);
+    }
+    .back-btn {
+      background: transparent; border: 1px solid rgba(255,255,255,0.15);
+      color: var(--text-dim); padding: 8px 12px; border-radius: 10px;
+      cursor: pointer; font-size: 0.85rem;
+    }
+    h2 { font-weight: 400; letter-spacing: 0.04em; margin-bottom: 6px; font-size: 1.35rem; }
+    .subtitle { color: var(--text-dim); font-size: 0.9rem; margin-bottom: 20px; }
+    .avatar-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+      width: 100%;
+    }
+    @media (min-width: 420px) {
+      .avatar-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+    .avatar-card {
+      background: var(--card);
+      border: 2px solid transparent;
+      border-radius: 16px;
+      padding: 12px 8px 14px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.25s;
+    }
+    .avatar-card.selected, .avatar-card:active {
+      border-color: var(--gold);
+      box-shadow: 0 0 20px rgba(212,175,55,0.3);
+    }
+    .avatar-photo {
+      width: 80px; height: 80px;
+      border-radius: 50%;
+      object-fit: cover;
+      margin: 0 auto 10px;
+      display: block;
+      border: 2px solid rgba(212,175,55,0.45);
+      background: #1a1a25;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.6), 0 0 0 2px rgba(212,175,55,0.2);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .avatar-card.selected .avatar-photo,
+    .avatar-card:active .avatar-photo {
+      transform: scale(1.06);
+      box-shadow: 0 10px 24px rgba(212,175,55,0.35), 0 0 0 3px rgba(212,175,55,0.5);
+    }
+    .avatar-name { font-weight: 600; font-size: 0.95rem; margin-bottom: 2px; }
+    .avatar-style { font-size: 0.72rem; color: var(--text-dim); }
+    .district-grid { display: grid; grid-template-columns: 1fr; gap: 12px; flex: 1; }
+    @media (min-width: 480px) { .district-grid { grid-template-columns: 1fr 1fr; } }
+    .room-door {
+      background: linear-gradient(135deg, var(--card), #15151f);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px;
+      padding: 14px;
+      display: flex; align-items: center; gap: 14px;
+      cursor: pointer; transition: all 0.25s;
+      position: relative; overflow: hidden;
+    }
+    .room-door:active { border-color: var(--gold); }
+    .room-thumb {
+      width: 56px; height: 56px;
+      border-radius: 12px;
+      object-fit: cover;
+      object-position: top center;
+      flex-shrink: 0;
+      background: #222;
+    }
+    .room-info h3 { font-weight: 600; font-size: 0.95rem; margin-bottom: 3px; }
+    .room-info p { font-size: 0.78rem; color: var(--text-dim); }
+    .room-tag {
+      margin-left: auto;
+      font-size: 0.68rem;
+      padding: 3px 8px;
+      border-radius: 12px;
+      background: rgba(255,107,157,0.15);
+      color: var(--neon-soft);
+      white-space: nowrap;
+    }
+    .model-area {
+      flex: 1;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: flex-start;
+      background: radial-gradient(ellipse at center, #1c1228 0%, #0e0e16 70%);
+      border-radius: 18px;
+      margin-bottom: 14px;
+      padding: 16px;
+      position: relative;
+      min-height: 320px;
+      border: 1px solid rgba(212,175,55,0.15);
+      overflow: hidden;
+    }
+    .model-photo {
+      width: 180px; height: 280px;
+      border-radius: 14px;
+      object-fit: cover;
+      object-position: top center;
+      border: 2px solid rgba(212,175,55,0.45);
+      box-shadow: 0 10px 32px rgba(0,0,0,0.55);
+      margin-bottom: 12px;
+      transition: transform 0.3s;
+      background: #222;
+    }
+    .model-photo.react { animation: reactPulse 0.55s ease; }
+    @keyframes reactPulse {
+      0% { transform: scale(1); }
+      40% { transform: scale(1.08); }
+      100% { transform: scale(1); }
+    }
+    .model-name { font-size: 1.25rem; font-weight: 500; color: var(--gold-light); margin-bottom: 4px; }
+    .model-mood { font-size: 0.85rem; color: var(--text-dim); margin-bottom: 10px; text-align: center; }
+    .reaction-bubble {
+      background: rgba(255,255,255,0.09);
+      border: 1px solid rgba(255,255,255,0.12);
+      padding: 10px 16px; border-radius: 16px;
+      font-size: 0.9rem; max-width: 92%; text-align: center;
+      opacity: 0; transform: translateY(8px);
+      transition: all 0.3s; position: absolute; bottom: 14px;
+    }
+    .reaction-bubble.show { opacity: 1; transform: translateY(0); }
+    .action-panel {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 10px;
+    }
+    .action-btn {
+      background: var(--card);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px; padding: 12px 6px;
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      cursor: pointer; font-size: 0.75rem; color: var(--text);
+    }
+    .action-btn:active { border-color: var(--gold); background: rgba(212,175,55,0.08); }
+    .action-btn .icon { font-size: 1.35rem; }
+    .action-btn .cost { font-size: 0.68rem; color: var(--gold); font-weight: 600; }
+    #chat-panel {
+      display: none;
+      margin-top: 8px;
+      background: rgba(0,0,0,0.35);
+      border-radius: 14px;
+      padding: 10px;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .chat-area {
+      max-height: 140px;
+      overflow-y: auto;
+      font-size: 0.88rem;
+      margin-bottom: 8px;
+      padding-right: 4px;
+    }
+    .chat-msg {
+      margin-bottom: 6px;
+      padding: 7px 11px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.06);
+      line-height: 1.35;
+    }
+    .chat-msg.player { text-align: right; color: var(--gold-light); background: rgba(212,175,55,0.12); }
+    .chat-msg.model { color: var(--neon-soft); }
+    .chat-input-row { display: flex; gap: 8px; }
+    #chat-input {
+      flex: 1;
+      padding: 11px 14px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.15);
+      background: var(--card);
+      color: var(--text);
+      font-size: 0.95rem;
+      outline: none;
+    }
+    #chat-input:focus { border-color: var(--gold); }
+    .chat-cost-note { font-size: 0.7rem; color: var(--text-dim); text-align: center; margin-top: 6px; }
+    .shop-grid { display: grid; gap: 12px; margin-bottom: 20px; }
+    .package-card {
+      background: var(--card);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 14px; padding: 16px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .package-card.best {
+      border-color: var(--neon);
+      background: linear-gradient(135deg, rgba(255,107,157,0.08), var(--card));
+    }
+    .pkg-name { font-weight: 600; font-size: 1.05rem; margin-bottom: 3px; }
+    .pkg-tokens { color: var(--gold-light); font-size: 0.9rem; }
+    .pkg-price { font-size: 1.2rem; font-weight: 700; }
+    .pkg-badge {
+      font-size: 0.65rem; background: var(--neon); color: white;
+      padding: 2px 7px; border-radius: 5px; margin-left: 6px;
+    }
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.78);
+      display: none; align-items: center; justify-content: center;
+      z-index: 100; padding: 18px;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal {
+      background: var(--bg2);
+      border: 1px solid rgba(212,175,55,0.3);
+      border-radius: 18px; padding: 24px 18px;
+      width: 100%; max-width: 360px; max-height: 85vh; overflow-y: auto;
+    }
+    .modal h3 { text-align: center; margin-bottom: 4px; color: var(--gold-light); }
+    .modal p { text-align: center; color: var(--text-dim); font-size: 0.85rem; margin-bottom: 16px; }
+    .vip-option {
+      background: var(--card);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px; padding: 12px 14px; margin-bottom: 8px;
+      display: flex; justify-content: space-between; align-items: center;
+      cursor: pointer;
+    }
+    .vip-option:active { border-color: var(--gold); }
+    .vip-cost { color: var(--gold); font-weight: 600; }
+    .toast {
+      position: fixed; bottom: 28px; left: 50%;
+      transform: translateX(-50%) translateY(70px);
+      background: var(--card); border: 1px solid var(--gold);
+      color: var(--text); padding: 11px 18px; border-radius: 12px;
+      font-size: 0.9rem; z-index: 200; opacity: 0;
+      transition: all 0.3s; pointer-events: none; max-width: 90%; text-align: center;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .store-note { text-align: center; font-size: 0.72rem; color: var(--text-dim); margin-top: 16px; line-height: 1.4; }
+  
+    /* Performance / VIP live motion */
+    .model-area.performing {
+      background: radial-gradient(ellipse at center, #2a1540 0%, #0a0812 70%);
+      box-shadow: inset 0 0 60px rgba(255,107,157,0.25), 0 0 40px rgba(212,175,55,0.15);
+      animation: stagePulse 2.5s ease-in-out infinite;
+    }
+    .model-area.vip-mode {
+      background: radial-gradient(ellipse at center, #1a1228 0%, #08060e 70%);
+      box-shadow: inset 0 0 50px rgba(212,175,55,0.2), 0 0 30px rgba(212,175,55,0.12);
+    }
+    @keyframes stagePulse {
+      0%, 100% { box-shadow: inset 0 0 40px rgba(255,107,157,0.2), 0 0 20px rgba(212,175,55,0.1); }
+      50% { box-shadow: inset 0 0 70px rgba(255,107,157,0.35), 0 0 45px rgba(212,175,55,0.25); }
+    }
+    .model-photo.dance {
+      animation: danceMove 0.7s ease-in-out 6;
+    }
+    @keyframes danceMove {
+      0% { transform: scale(1) rotate(0deg) translateY(0); }
+      25% { transform: scale(1.06) rotate(-2.5deg) translateY(-6px); }
+      50% { transform: scale(1.03) rotate(2deg) translateY(-2px); }
+      75% { transform: scale(1.07) rotate(-1.5deg) translateY(-8px); }
+      100% { transform: scale(1) rotate(0deg) translateY(0); }
+    }
+    .model-photo.vip-pose {
+      animation: vipSway 3.5s ease-in-out infinite;
+    }
+    @keyframes vipSway {
+      0%, 100% { transform: scale(1.04) translateY(0); }
+      50% { transform: scale(1.07) translateY(-4px); }
+    }
+    .sparkle {
+      position: absolute;
+      width: 6px; height: 6px;
+      background: var(--gold-light);
+      border-radius: 50%;
+      pointer-events: none;
+      opacity: 0;
+      animation: spark 1.4s ease-out forwards;
+    }
+    @keyframes spark {
+      0% { opacity: 1; transform: scale(0) translate(0,0); }
+      40% { opacity: 1; transform: scale(1.2); }
+      100% { opacity: 0; transform: scale(0.3) translate(var(--tx), var(--ty)); }
+    }
+    .stage-label {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.7rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--gold-light);
+      background: rgba(0,0,0,0.45);
+      padding: 4px 12px;
+      border-radius: 20px;
+      border: 1px solid rgba(212,175,55,0.3);
+      opacity: 0;
+      transition: opacity 0.3s;
+      z-index: 5;
+    }
+    .stage-label.show { opacity: 1; }
+
+  </style>
+</head>
+<body>
+  <div id="title-screen" class="screen active">
+    <div class="particles" id="particles"></div>
+    <div class="title-logo">HER WORLD</div>
+    <div class="title-sub">Welcome to the Lounge</div>
+    <button class="btn btn-primary" onclick="showScreen('avatar-screen')">Enter Her World</button>
+    <p class="store-note" style="position:absolute;bottom:22px;left:0;right:0;">
+      Lifestyle Simulation · 17+ · Store-safe glamorous experience
+    </p>
+  </div>
+
+  <div id="avatar-screen" class="screen">
+    <div class="top-bar">
+      <button class="back-btn" onclick="showScreen('title-screen')">← Back</button>
+      <div class="token-display">✦ <span id="tokens-avatar">200</span></div>
+    </div>
+    <h2>Choose Your Avatar</h2>
+    <p class="subtitle">Diverse looks · This is how you appear in Her World</p>
+    <div class="avatar-grid" id="avatar-grid"></div>
+    <button class="btn btn-primary" id="confirm-avatar" disabled onclick="confirmAvatar()" style="width:100%;">Continue</button>
+  </div>
+
+  <div id="district-screen" class="screen">
+    <div class="top-bar">
+      <button class="back-btn" onclick="showScreen('avatar-screen')">← Avatar</button>
+      <div class="token-display">✦ <span id="tokens-district">200</span></div>
+      <button class="btn btn-secondary btn-small" onclick="showScreen('shop-screen')">Shop</button>
+    </div>
+    <h2>Her World District</h2>
+    <p class="subtitle">Choose a lounge</p>
+    <div class="district-grid" id="district-grid"></div>
+  </div>
+
+  <div id="room-screen" class="screen">
+    <div class="top-bar">
+      <button class="back-btn" onclick="showScreen('district-screen')">← District</button>
+      <div class="token-display">✦ <span id="tokens-room">200</span></div>
+      <button class="btn btn-secondary btn-small" onclick="showScreen('shop-screen')">Shop</button>
+    </div>
+    <div class="model-area" id="model-area">
+      <div class="stage-label" id="stage-label"></div>
+      <img class="model-photo" id="model-photo" src="" alt="Host" />
+      <div class="model-name" id="model-name">Sofia</div>
+      <div class="model-mood" id="model-mood">Looking at you with a warm smile…</div>
+      <div class="reaction-bubble" id="reaction-bubble"></div>
+    </div>
+    <div class="action-panel">
+      <button class="action-btn" onclick="doAction('tip')"><span class="icon">💎</span>Tip<span class="cost">25 ✦</span></button>
+      <button class="action-btn" onclick="doAction('champagne')"><span class="icon">🥂</span>Champagne<span class="cost">40 ✦</span></button>
+      <button class="action-btn" onclick="doAction('flirt')"><span class="icon">😘</span>Flirt<span class="cost">35 ✦</span></button>
+      <button class="action-btn" onclick="doAction('emoji')"><span class="icon">🔥</span>Emoji<span class="cost">15 ✦</span></button>
+    </div>
+    <div id="chat-panel">
+      <div class="chat-area" id="chat-area"></div>
+      <div class="chat-input-row">
+        <input type="text" id="chat-input" placeholder="Type a message…" maxlength="120"
+               onkeydown="if(event.key==='Enter'){event.preventDefault();sendChat();}" />
+        <button class="btn btn-primary btn-small" onclick="sendChat()">Send</button>
+      </div>
+      <p class="chat-cost-note">Each message costs 20 ✦ · Host replies instantly</p>
+    </div>
+    <button class="btn btn-secondary" style="width:100%;margin-top:8px;" id="chat-toggle-btn" onclick="toggleChat()">💬 Chat</button>
+  </div>
+
+  <div id="shop-screen" class="screen">
+    <div class="top-bar">
+      <button class="back-btn" onclick="goBackFromShop()">← Back</button>
+      <div class="token-display">✦ <span id="tokens-shop">200</span></div>
+    </div>
+    <h2>Token Shop</h2>
+    <p class="subtitle">Fuel your nights in Her World</p>
+    <div class="shop-grid">
+      <div class="package-card">
+        <div><div class="pkg-name">Starter</div><div class="pkg-tokens">300 Tokens</div></div>
+        <div>
+          <div class="pkg-price">$5.99</div>
+          <a href="https://app.payhere.co/cma-digital/starter-c1eb13da-efca-4e68-b5e5-d06e695df768" target="_blank" class="btn btn-primary btn-small" style="margin-top:6px;display:inline-block;">Buy</a>
+        </div>
+      </div>
+      <div class="package-card">
+        <div><div class="pkg-name">Premium Silver</div><div class="pkg-tokens">650 Tokens</div></div>
+        <div>
+          <div class="pkg-price">$10.99</div>
+          <a href="https://app.payhere.co/cma-digital/premium-silver" target="_blank" class="btn btn-primary btn-small" style="margin-top:6px;display:inline-block;">Buy</a>
+        </div>
+      </div>
+      <div class="package-card best">
+        <div><div class="pkg-name">Premium Gold <span class="pkg-badge">BEST</span></div><div class="pkg-tokens">2,000 Tokens</div></div>
+        <div>
+          <div class="pkg-price">$29.99</div>
+          <a href="https://app.payhere.co/cma-digital/premium-gold" target="_blank" class="btn btn-neon btn-small" style="margin-top:6px;display:inline-block;">Buy</a>
+        </div>
+      </div>
+      <div class="package-card">
+        <div><div class="pkg-name">Premium Platinum</div><div class="pkg-tokens">4,500 Tokens</div></div>
+        <div>
+          <div class="pkg-price">$59.99</div>
+          <a href="https://app.payhere.co/cma-digital/premium-platinum" target="_blank" class="btn btn-primary btn-small" style="margin-top:6px;display:inline-block;">Buy</a>
+        </div>
+      </div>
+    </div>
+    <p class="store-note">Purchases open PayHere checkout.<br>Production build will use Google Play Billing / App Store.</p>
+
+  </div>
+
+  <div class="modal-overlay" id="vip-modal">
+    <div class="modal">
+      <h3>VIP Private Time</h3>
+      <p>Exclusive non-explicit experiences</p>
+      <div class="vip-option" onclick="buyVIP(200,'Intimate Conversation')">
+        <div><strong>Intimate Conversation</strong><br><small style="color:var(--text-dim)">Soft lighting · eye contact · stories</small></div>
+        <div class="vip-cost">200 ✦</div>
+      </div>
+      <div class="vip-option" onclick="buyVIP(320,'Private Dance')">
+        <div><strong>Private Dance</strong><br><small style="color:var(--text-dim)">Elegant performance just for you</small></div>
+        <div class="vip-cost">320 ✦</div>
+      </div>
+      <div class="vip-option" onclick="buyVIP(450,'Cabana Escape')">
+        <div><strong>Cabana Escape</strong><br><small style="color:var(--text-dim)">Paradise Island private lounge</small></div>
+        <div class="vip-cost">450 ✦</div>
+      </div>
+      <button class="btn btn-secondary" style="width:100%;margin-top:10px;" onclick="closeVIP()">Close</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const avatars = [
+      { id: 'a1', name: 'Alex', style: 'Caucasian · Modern',
+        img: 'https://api.dicebear.com/7.x/personas/png?seed=Alex&backgroundColor=1a1a25&size=128' },
+      { id: 'a2', name: 'Jordan', style: 'Caucasian · Elegant',
+        img: 'https://api.dicebear.com/7.x/lorelei/png?seed=Jordan&backgroundColor=1a1a25&size=128' },
+      { id: 'a3', name: 'Marcus', style: 'Black · Sharp',
+        img: 'https://api.dicebear.com/7.x/personas/png?seed=Marcus&backgroundColor=1a1a25&size=128' },
+      { id: 'a4', name: 'Amara', style: 'Black · Glam',
+        img: 'https://api.dicebear.com/7.x/lorelei/png?seed=Amara&backgroundColor=1a1a25&size=128' },
+      { id: 'a5', name: 'Kai', style: 'Asian · Stylish',
+        img: 'https://api.dicebear.com/7.x/personas/png?seed=Kai&backgroundColor=1a1a25&size=128' },
+      { id: 'a6', name: 'Mei', style: 'Asian · Chic',
+        img: 'https://api.dicebear.com/7.x/lorelei/png?seed=MeiLin&backgroundColor=1a1a25&size=128' },
+      { id: 'a7', name: 'Diego', style: 'Latino · Bold',
+        img: 'https://api.dicebear.com/7.x/personas/png?seed=Diego&backgroundColor=1a1a25&size=128' },
+      { id: 'a8', name: 'Sofia', style: 'Latina · Soft',
+        img: 'https://api.dicebear.com/7.x/lorelei/png?seed=SofiaR&backgroundColor=1a1a25&size=128' },
+      { id: 'a9', name: 'Jay', style: 'Mixed · Cool',
+        img: 'https://api.dicebear.com/7.x/personas/png?seed=JayM&backgroundColor=1a1a25&size=128' },
+      { id: 'a10', name: 'Luna', style: 'Mixed · Resort',
+        img: 'https://api.dicebear.com/7.x/lorelei/png?seed=LunaStar&backgroundColor=1a1a25&size=128' }
+    ];
+
+    const rooms = [
+      { id: 'velvet', name: 'Velvet Room', desc: 'Deep reds & gold · Intimate', tag: 'Caucasian',
+        thumb: 'img/sofia.jpg',
+        model: { name: 'Sofia', mood: 'Smiling softly, waiting for you…', img: 'img/sofia.jpg' } },
+      { id: 'jade', name: 'Jade Pavilion', desc: 'Lanterns · Elegant Asian', tag: 'Asian',
+        thumb: 'img/mei.jpg',
+        model: { name: 'Mei', mood: 'Graceful nod and warm eyes…', img: 'img/mei.jpg' } },
+      { id: 'ebony', name: 'Ebony Lounge', desc: 'Rich tones · Powerful', tag: 'Black / African',
+        thumb: 'img/amara.jpg',
+        model: { name: 'Amara', mood: 'Confident smile, inviting you closer…', img: 'img/amara.jpg' } },
+      { id: 'sapphire', name: 'Sapphire Suite', desc: 'Blue neon · Modern mix', tag: 'Mixed',
+        thumb: 'img/luna.jpg',
+        model: { name: 'Luna', mood: 'Playful glance over her shoulder…', img: 'img/luna.jpg' } },
+      { id: 'paradise', name: 'Paradise Island', desc: 'Cabanas · Tropical night', tag: 'Resort',
+        thumb: 'img/isla.jpg',
+        model: { name: 'Isla', mood: 'Sea breeze and soft laughter…', img: 'img/isla.jpg' } },
+      { id: 'noir', name: 'Noir Cabaret', desc: 'Stage · Theatrical flair', tag: 'Performance',
+        thumb: 'img/luna.jpg',
+        model: { name: 'Vivienne', mood: 'Ready for the spotlight…', img: 'img/luna.jpg' } }
+    ];
+
+    const reactions = {
+      tip: ["Mmm, thank you… that’s so generous 💎", "You just made my night brighter ✨", "Such a gentleman… I notice everything"],
+      champagne: ["Champagne? You know how to treat a lady 🥂", "To us… and whatever comes next", "Bubbles and good company — perfect"],
+      flirt: ["You’re smooth… I like that 😘", "Keep talking like that and I might blush", "Careful… you’re making me smile too much"],
+      emoji: ["🔥 right back at you", "❤️ felt that", "😏 I see you"],
+      performance: ["*steps onto the soft-lit stage and begins a slow, elegant dance*", "This one’s just for you… watch closely ✨", "*moves gracefully under the neon lights, eyes locked on yours*"]
+    };
+
+    const chatReplies = [
+      "Tell me something interesting about yourself…",
+      "I like the way you look at me.",
+      "The night is young. What are you in the mood for?",
+      "You have good taste in rooms.",
+      "Stay a little longer… the view is better with you here.",
+      "That made me smile ☺️",
+      "You’re different from the others who come here.",
+      "What brought you to Her World tonight?",
+      "I could talk to you for hours.",
+      "There’s something about your energy…"
+    ];
+
+    let tokens = parseInt(localStorage.getItem('hw_tokens')) || 200;
+    let selectedAvatar = localStorage.getItem('hw_avatar') || null;
+    let currentRoom = null;
+    let previousScreen = 'district-screen';
+    let chatVisible = false;
+
+    function init() {
+      const p = document.getElementById('particles');
+      for (let i = 0; i < 16; i++) {
+        const el = document.createElement('div');
+        el.className = 'particle';
+        el.style.left = Math.random() * 100 + '%';
+        el.style.animationDelay = (Math.random() * 12) + 's';
+        el.style.animationDuration = (8 + Math.random() * 8) + 's';
+        p.appendChild(el);
+      }
+
+      const grid = document.getElementById('avatar-grid');
+      grid.innerHTML = '';
+      avatars.forEach(a => {
+        const card = document.createElement('div');
+        card.className = 'avatar-card' + (selectedAvatar === a.id ? ' selected' : '');
+        card.dataset.id = a.id;
+        card.innerHTML = '<img class="avatar-photo" src="' + a.img + '" alt="' + a.name + '" loading="lazy" onerror="this.src=\'https://via.placeholder.com/150/1a1a25/d4af37?text=' + a.name.charAt(0) + '\'" /><div class="avatar-name">' + a.name + '</div><div class="avatar-style">' + a.style + '</div>';
+        card.onclick = function() { selectAvatar(a.id, card); };
+        grid.appendChild(card);
+      });
+      if (selectedAvatar) document.getElementById('confirm-avatar').disabled = false;
+
+      const dist = document.getElementById('district-grid');
+      dist.innerHTML = '';
+      rooms.forEach(r => {
+        const door = document.createElement('div');
+        door.className = 'room-door';
+        door.innerHTML = '<img class="room-thumb" src="' + r.thumb + '" alt="' + r.model.name + '" loading="lazy" onerror="this.src=\'https://via.placeholder.com/100/1a1a25/d4af37?text=' + r.model.name.charAt(0) + '\'" /><div class="room-info"><h3>' + r.name + '</h3><p>' + r.desc + '</p></div><div class="room-tag">' + r.tag + '</div>';
+        door.onclick = function() { enterRoom(r); };
+        dist.appendChild(door);
+      });
+
+      updateTokens();
+    }
+
+    function selectAvatar(id, el) {
+      document.querySelectorAll('.avatar-card').forEach(function(c) { c.classList.remove('selected'); });
+      el.classList.add('selected');
+      selectedAvatar = id;
+      document.getElementById('confirm-avatar').disabled = false;
+    }
+
+    function confirmAvatar() {
+      if (!selectedAvatar) return;
+      localStorage.setItem('hw_avatar', selectedAvatar);
+      showScreen('district-screen');
+      toast('Welcome to the District');
+    }
+
+    function enterRoom(room) {
+      currentRoom = room;
+      var photo = document.getElementById('model-photo');
+      photo.src = room.model.img;
+      photo.onerror = function() { photo.src = 'https://via.placeholder.com/200/1a1a25/d4af37?text=' + room.model.name.charAt(0); };
+      document.getElementById('model-name').textContent = room.model.name;
+      document.getElementById('model-mood').textContent = room.model.mood;
+      document.getElementById('reaction-bubble').classList.remove('show');
+      document.getElementById('chat-panel').style.display = 'none';
+      document.getElementById('chat-toggle-btn').textContent = '💬 Chat';
+      document.getElementById('chat-area').innerHTML = '';
+      chatVisible = false;
+      // reset performance / VIP effects
+      var photo = document.getElementById('model-photo');
+      var area = document.getElementById('model-area');
+      var label = document.getElementById('stage-label');
+      if (photo) photo.classList.remove('react', 'dance', 'vip-pose');
+      if (area) area.classList.remove('performing', 'vip-mode');
+      if (label) label.classList.remove('show');
+      showScreen('room-screen');
+    }
+
+    function showScreen(id) {
+      document.querySelectorAll('.screen').forEach(function(s) { s.classList.remove('active'); });
+      document.getElementById(id).classList.add('active');
+      if (id === 'shop-screen') previousScreen = 'district-screen';
+      updateTokens();
+    }
+
+    function goBackFromShop() {
+      showScreen(previousScreen || 'district-screen');
+    }
+
+    function updateTokens() {
+      ['tokens-avatar','tokens-district','tokens-room','tokens-shop'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.textContent = tokens;
+      });
+      localStorage.setItem('hw_tokens', tokens);
+    }
+
+    function spend(amount) {
+      if (tokens < amount) {
+        toast('Not enough tokens — visit the Shop');
+        return false;
+      }
+      tokens -= amount;
+      updateTokens();
+      return true;
+    }
+
+    function doAction(type) {
+      var costs = { tip: 25, champagne: 40, flirt: 35, emoji: 15, performance: 120 };
+      if (!spend(costs[type])) return;
+
+      var photo = document.getElementById('model-photo');
+      var area = document.getElementById('model-area');
+      var label = document.getElementById('stage-label');
+      var bubble = document.getElementById('reaction-bubble');
+      var mood = document.getElementById('model-mood');
+
+      // reset previous effects
+      photo.classList.remove('react', 'dance', 'vip-pose');
+      area.classList.remove('performing', 'vip-mode');
+      label.classList.remove('show');
+      void photo.offsetWidth;
+
+      if (type === 'performance') {
+        // Live performance mode
+        area.classList.add('performing');
+        photo.classList.add('dance');
+        label.textContent = '✦ Live Performance';
+        label.classList.add('show');
+        mood.textContent = 'Dancing just for you under the lights…';
+        spawnSparks(14);
+        var msg = reactions.performance[Math.floor(Math.random() * reactions.performance.length)];
+        bubble.textContent = msg;
+        bubble.classList.add('show');
+        setTimeout(function() {
+          bubble.classList.remove('show');
+          photo.classList.remove('dance');
+          area.classList.remove('performing');
+          label.classList.remove('show');
+          mood.textContent = currentRoom ? currentRoom.model.mood : '';
+        }, 4800);
+      } else {
+        photo.classList.add('react');
+        var msg = reactions[type][Math.floor(Math.random() * reactions[type].length)];
+        bubble.textContent = msg;
+        bubble.classList.add('show');
+        setTimeout(function() { bubble.classList.remove('show'); }, 3400);
+      }
+    }
+
+    function spawnSparks(count) {
+      var area = document.getElementById('model-area');
+      for (var i = 0; i < count; i++) {
+        var s = document.createElement('div');
+        s.className = 'sparkle';
+        var angle = Math.random() * Math.PI * 2;
+        var dist = 40 + Math.random() * 90;
+        s.style.setProperty('--tx', Math.cos(angle) * dist + 'px');
+        s.style.setProperty('--ty', Math.sin(angle) * dist - 30 + 'px');
+        s.style.left = '50%';
+        s.style.top = '42%';
+        s.style.animationDelay = (Math.random() * 0.5) + 's';
+        area.appendChild(s);
+        setTimeout((function(el) { return function() { el.remove(); }; })(s), 1600);
+      }
+    }
+
+    function openVIP() { document.getElementById('vip-modal').classList.add('show'); }
+    function closeVIP() { document.getElementById('vip-modal').classList.remove('show'); }
+    function buyVIP(cost, name) {
+      if (!spend(cost)) return;
+      closeVIP();
+
+      var photo = document.getElementById('model-photo');
+      var area = document.getElementById('model-area');
+      var label = document.getElementById('stage-label');
+      var bubble = document.getElementById('reaction-bubble');
+      var mood = document.getElementById('model-mood');
+
+      photo.classList.remove('react', 'dance', 'vip-pose');
+      area.classList.remove('performing', 'vip-mode');
+      void photo.offsetWidth;
+
+      area.classList.add('vip-mode');
+      photo.classList.add('vip-pose');
+      label.textContent = '👑 VIP · ' + name;
+      label.classList.add('show');
+      mood.textContent = 'Sharing a private, elegant moment with you…';
+      spawnSparks(10);
+
+      bubble.textContent = '*leans closer under soft light* “This moment is only ours…”';
+      bubble.classList.add('show');
+
+      setTimeout(function() {
+        bubble.classList.remove('show');
+      }, 4200);
+
+      setTimeout(function() {
+        photo.classList.remove('vip-pose');
+        area.classList.remove('vip-mode');
+        label.classList.remove('show');
+        mood.textContent = currentRoom ? currentRoom.model.mood : '';
+      }, 7000);
+
+      toast('VIP unlocked: ' + name);
+    }
+
+    function toggleChat() {
+      chatVisible = !chatVisible;
+      var panel = document.getElementById('chat-panel');
+      var btn = document.getElementById('chat-toggle-btn');
+      panel.style.display = chatVisible ? 'block' : 'none';
+      btn.textContent = chatVisible ? '💬 Hide Chat' : '💬 Chat';
+      if (chatVisible) {
+        var area = document.getElementById('chat-area');
+        if (area.children.length === 0) {
+          addChat('model', chatReplies[Math.floor(Math.random() * chatReplies.length)]);
+        }
+        setTimeout(function() { document.getElementById('chat-input').focus(); }, 100);
+      }
+    }
+
+    function addChat(who, text) {
+      var area = document.getElementById('chat-area');
+      var div = document.createElement('div');
+      div.className = 'chat-msg ' + who;
+      var name = who === 'player' ? 'You' : (currentRoom ? currentRoom.model.name : 'Host');
+      div.textContent = name + ': ' + text;
+      area.appendChild(div);
+      area.scrollTop = area.scrollHeight;
+    }
+
+    function sendChat() {
+      var input = document.getElementById('chat-input');
+      var text = input.value.trim();
+      if (!text) return;
+      if (!spend(20)) return;
+      addChat('player', text);
+      input.value = '';
+      setTimeout(function() {
+        addChat('model', chatReplies[Math.floor(Math.random() * chatReplies.length)]);
+      }, 600 + Math.random() * 900);
+    }
+
+    function toast(msg) {
+      var t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(function() { t.classList.remove('show'); }, 2600);
+    }
+
+    init();
+  </script>
+</body>
+</html>
