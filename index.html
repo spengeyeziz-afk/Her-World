@@ -405,6 +405,57 @@
     }
     .stage-label.show { opacity: 1; }
 
+    .earn-card {
+      background: linear-gradient(135deg, rgba(212,175,55,0.16), var(--card));
+      border: 1px solid rgba(212,175,55,0.45);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 18px;
+    }
+    .earn-card h3 {
+      font-weight: 500;
+      color: var(--gold-light);
+      font-size: 0.95rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    .earn-btn { width: 100%; }
+    .earn-note { font-size: 0.75rem; color: var(--text-dim); text-align: center; margin-top: 8px; }
+    .chat-msg.system {
+      text-align: center;
+      color: var(--text-dim);
+      font-size: 0.78rem;
+      background: transparent;
+      border: 1px solid rgba(212,175,55,0.2);
+      font-style: italic;
+    }
+    .about-block {
+      background: var(--card);
+      border: 1px solid rgba(212,175,55,0.25);
+      border-radius: 14px;
+      padding: 16px;
+      line-height: 1.5;
+      color: var(--text-dim);
+      font-size: 0.92rem;
+    }
+    .about-block h3 { color: var(--gold-light); font-weight: 500; margin-bottom: 8px; font-size: 1rem; }
+    .modal-actions { display: flex; gap: 10px; margin-top: 8px; }
+    .modal-actions .btn { flex: 1; }
+    .ad-stage {
+      margin: 12px 0 16px;
+      height: 160px;
+      border-radius: 14px;
+      background: radial-gradient(ellipse at center, #2a1540, #0a0a0f);
+      border: 1px solid rgba(212,175,55,0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--gold-light);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-size: 0.85rem;
+    }
   </style>
 </head>
 <body>
@@ -433,6 +484,7 @@
     <div class="top-bar">
       <button class="back-btn" onclick="showScreen('avatar-screen')">← Avatar</button>
       <div class="token-display">✦ <span id="tokens-district">200</span></div>
+      <button class="btn btn-secondary btn-small" onclick="showScreen('settings-screen')">Settings</button>
       <button class="btn btn-secondary btn-small" onclick="showScreen('shop-screen')">Shop</button>
     </div>
     <h2>Her World District</h2>
@@ -478,6 +530,11 @@
     </div>
     <h2>Token Shop</h2>
     <p class="subtitle">Fuel your nights in Her World</p>
+    <div class="earn-card">
+      <h3>Earn Free Tokens</h3>
+      <button class="btn btn-primary earn-btn" onclick="askWatchAd()">Watch Ad for 50 Tokens</button>
+      <p class="earn-note" id="ad-remaining">Up to 4 rewarded videos a day</p>
+    </div>
     <div class="shop-grid">
       <div class="package-card">
         <div><div class="pkg-name">Starter</div><div class="pkg-tokens">300 Tokens</div></div>
@@ -508,8 +565,21 @@
         </div>
       </div>
     </div>
-    <p class="store-note">Purchases open PayHere checkout.<br>Production build will use Google Play Billing / App Store.</p>
+    <p class="store-note">Payments currently processed via PayHere. Once the app is live on Google Play and the App Store, purchases will use official in-app billing.</p>
+  </div>
 
+  <div id="settings-screen" class="screen">
+    <div class="top-bar">
+      <button class="back-btn" onclick="showScreen('district-screen')">← Back</button>
+      <div class="token-display">✦ <span id="tokens-settings">200</span></div>
+    </div>
+    <h2>Settings</h2>
+    <p class="subtitle">About</p>
+    <div class="about-block">
+      <h3>About the Hosts</h3>
+      <p>All hosts in Her World are powered by AI. Their responses are generated automatically to create a consistent, elegant nightlife experience available 24/7.</p>
+    </div>
+    <p class="store-note">Her World · 17+ · Lifestyle simulation</p>
   </div>
 
   <div class="modal-overlay" id="vip-modal">
@@ -529,6 +599,25 @@
         <div class="vip-cost">450 ✦</div>
       </div>
       <button class="btn btn-secondary" style="width:100%;margin-top:10px;" onclick="closeVIP()">Close</button>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="ad-modal">
+    <div class="modal">
+      <h3>Earn Free Tokens</h3>
+      <p>Watch a short video to receive 50 Tokens?</p>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeAdPrompt()">Cancel</button>
+        <button class="btn btn-primary" onclick="confirmWatchAd()">Watch</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="ad-player">
+    <div class="modal">
+      <h3>Sponsored moment</h3>
+      <div class="ad-stage" id="ad-stage">Playing</div>
+      <p id="ad-timer">Please watch to the end to earn 50 Tokens.</p>
     </div>
   </div>
 
@@ -605,6 +694,15 @@
     let currentRoom = null;
     let previousScreen = 'district-screen';
     let chatVisible = false;
+    const disclosedHosts = {};
+
+    const ADMOB = {
+      appId: 'ca-app-pub-3940256099942544~3347511713',
+      rewardedAdUnitId: 'ca-app-pub-3940256099942544/5224354917',
+      rewardTokens: 50,
+      dailyLimit: 4
+    };
+    let rewardGrantedThisAd = false;
 
     function init() {
       const p = document.getElementById('particles');
@@ -640,6 +738,7 @@
       });
 
       updateTokens();
+      refreshAdNote();
     }
 
     function selectAvatar(id, el) {
@@ -690,7 +789,7 @@
     }
 
     function updateTokens() {
-      ['tokens-avatar','tokens-district','tokens-room','tokens-shop'].forEach(function(id) {
+      ['tokens-avatar','tokens-district','tokens-room','tokens-shop','tokens-settings'].forEach(function(id) {
         var el = document.getElementById(id);
         if (el) el.textContent = tokens;
       });
@@ -814,12 +913,25 @@
       panel.style.display = chatVisible ? 'block' : 'none';
       btn.textContent = chatVisible ? '💬 Hide Chat' : '💬 Chat';
       if (chatVisible) {
+        ensureAiDisclosure();
         var area = document.getElementById('chat-area');
-        if (area.children.length === 0) {
+        var hasHost = area.querySelector('.chat-msg.model');
+        if (!hasHost) {
           addChat('model', chatReplies[Math.floor(Math.random() * chatReplies.length)]);
         }
         setTimeout(function() { document.getElementById('chat-input').focus(); }, 100);
       }
+    }
+
+    function ensureAiDisclosure() {
+      var hostId = currentRoom ? currentRoom.id : 'host';
+      if (disclosedHosts[hostId]) return;
+      disclosedHosts[hostId] = true;
+      var area = document.getElementById('chat-area');
+      var div = document.createElement('div');
+      div.className = 'chat-msg system';
+      div.textContent = 'This host’s replies are generated by AI to keep the conversation flowing naturally.';
+      area.insertBefore(div, area.firstChild);
     }
 
     function addChat(who, text) {
@@ -842,6 +954,120 @@
       setTimeout(function() {
         addChat('model', chatReplies[Math.floor(Math.random() * chatReplies.length)]);
       }, 600 + Math.random() * 900);
+    }
+
+    function todayKey() {
+      return new Date().toISOString().slice(0, 10);
+    }
+
+    function adsWatchedToday() {
+      try {
+        var saved = JSON.parse(localStorage.getItem('hw_ads') || '{}');
+        if (saved.day !== todayKey()) return 0;
+        return saved.count || 0;
+      } catch (e) {
+        return 0;
+      }
+    }
+
+    function recordAdWatch() {
+      var count = adsWatchedToday() + 1;
+      localStorage.setItem('hw_ads', JSON.stringify({ day: todayKey(), count: count }));
+      refreshAdNote();
+    }
+
+    function refreshAdNote() {
+      var left = ADMOB.dailyLimit - adsWatchedToday();
+      var note = document.getElementById('ad-remaining');
+      if (!note) return;
+      note.textContent = left > 0
+        ? left + ' free video' + (left === 1 ? '' : 's') + ' left today'
+        : 'Daily free tokens used. Resets tomorrow.';
+    }
+
+    function askWatchAd() {
+      if (adsWatchedToday() >= ADMOB.dailyLimit) {
+        toast('You’ve reached today’s free token limit. Come back tomorrow or visit the Token Shop.');
+        return;
+      }
+      document.getElementById('ad-modal').classList.add('show');
+    }
+
+    function closeAdPrompt() {
+      document.getElementById('ad-modal').classList.remove('show');
+    }
+
+    function confirmWatchAd() {
+      closeAdPrompt();
+      if (adsWatchedToday() >= ADMOB.dailyLimit) {
+        toast('You’ve reached today’s free token limit. Come back tomorrow or visit the Token Shop.');
+        return;
+      }
+      showRewardedAd();
+    }
+
+    function onUserEarnedReward() {
+      if (rewardGrantedThisAd) return;
+      if (adsWatchedToday() >= ADMOB.dailyLimit) return;
+      rewardGrantedThisAd = true;
+      tokens += ADMOB.rewardTokens;
+      updateTokens();
+      recordAdWatch();
+      toast('+50 Tokens earned! Enjoy your night.');
+    }
+
+    function showRewardedAd() {
+      rewardGrantedThisAd = false;
+      var plugins = window.Capacitor && window.Capacitor.Plugins;
+      var AdMob = plugins && plugins.AdMob;
+      if (AdMob && typeof AdMob.prepareRewardVideoAd === 'function') {
+        AdMob.prepareRewardVideoAd({
+          adId: ADMOB.rewardedAdUnitId,
+          isTesting: ADMOB.rewardedAdUnitId.indexOf('3940256099942544') !== -1
+        }).then(function () {
+          if (typeof AdMob.addListener === 'function') {
+            AdMob.addListener('onRewardedVideoAdReward', function () { onUserEarnedReward(); });
+            AdMob.addListener('onRewarded', function () { onUserEarnedReward(); });
+          }
+          return AdMob.showRewardVideoAd();
+        }).catch(function () {
+          toast('The video could not be loaded. Please try again.');
+        });
+        return;
+      }
+      if (typeof window.adBreak === 'function') {
+        window.adBreak({
+          type: 'reward',
+          name: 'free-tokens',
+          beforeReward: function (showAdFn) { showAdFn(); },
+          adViewed: function () { onUserEarnedReward(); },
+          adDismissed: function () {
+            if (!rewardGrantedThisAd) toast('Watch the full video to earn tokens.');
+          }
+        });
+        return;
+      }
+      playFallbackRewardedAd();
+    }
+
+    function playFallbackRewardedAd() {
+      var overlay = document.getElementById('ad-player');
+      var stage = document.getElementById('ad-stage');
+      var timer = document.getElementById('ad-timer');
+      var left = 8;
+      overlay.classList.add('show');
+      stage.textContent = 'Playing';
+      timer.textContent = 'Please watch to the end to earn 50 Tokens. ' + left + 's';
+      var tick = setInterval(function () {
+        left -= 1;
+        if (left > 0) {
+          timer.textContent = 'Please watch to the end to earn 50 Tokens. ' + left + 's';
+          return;
+        }
+        clearInterval(tick);
+        overlay.classList.remove('show');
+        onUserEarnedReward();
+      }, 1000);
     }
 
     function toast(msg) {
