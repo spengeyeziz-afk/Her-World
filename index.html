@@ -276,6 +276,15 @@
     }
     .chat-msg.player { text-align: right; color: var(--gold-light); background: rgba(212,175,55,0.12); }
     .chat-msg.model { color: var(--neon-soft); }
+    .chat-media {
+      margin-top: 8px;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid rgba(212,175,55,0.28);
+      background: #0e0e16;
+    }
+    .chat-media img { width: 100%; height: 140px; object-fit: cover; object-position: top; display: block; }
+    .chat-media span { display: block; padding: 6px 10px 8px; font-size: 0.72rem; letter-spacing: 0.04em; color: var(--gold-light); }
     .chat-input-row { display: flex; gap: 8px; }
     #chat-input {
       flex: 1;
@@ -676,18 +685,88 @@
       performance: ["*steps onto the soft-lit stage and begins a slow, elegant dance*", "This one’s just for you… watch closely ✨", "*moves gracefully under the neon lights, eyes locked on yours*"]
     };
 
-    const chatReplies = [
-      "Tell me something interesting about yourself…",
-      "I like the way you look at me.",
-      "The night is young. What are you in the mood for?",
-      "You have good taste in rooms.",
-      "Stay a little longer… the view is better with you here.",
-      "That made me smile ☺️",
-      "You’re different from the others who come here.",
-      "What brought you to Her World tonight?",
-      "I could talk to you for hours.",
-      "There’s something about your energy…"
-    ];
+    const hosts = {
+      Sofia: {
+        pet: 'darling',
+        room: 'the soft red light of the Velvet Room',
+        origin: 'A coastal city in Southern Europe, where nights are made for slow conversation.',
+        outfit: 'A deep red and gold embroidered corset gown, with gold earrings warming in the intimate light.',
+        how: 'I’m glowing in the soft red light of the Velvet Room tonight… especially now that you’re here, darling.',
+        beauty: 'You say that so gently. It lands softer than the velvet around us.',
+        tip: 'You just made the red light feel warmer, darling. I will remember this.',
+        champagne: 'Champagne in the Velvet Room, with you. *soft laughter* That is how a night should begin.',
+        tease: 'Stay close. The night sounds better when you are the one speaking.',
+        photo: 'sofia_smile',
+        voice: 'soft_laugh'
+      },
+      Mei: {
+        pet: 'dear',
+        room: 'the lantern light of the Jade Pavilion',
+        origin: 'A quiet historic city far from here. I still keep its silence with me.',
+        outfit: 'An emerald cheongsam with gold details, jade ornaments resting in my hair.',
+        how: 'Calm, and a little brighter, now that you are here under the lanterns.',
+        beauty: 'Thank you. Beauty matters more when someone says it with care.',
+        tip: 'A generous gesture. I receive it quietly, and I do not forget it.',
+        champagne: 'Bubbles and lantern light. You chose a graceful way to say you are glad to be here.',
+        tease: 'Tell me something true. I prefer words with weight.',
+        photo: 'mei_lantern',
+        voice: 'welcome'
+      },
+      Amara: {
+        pet: 'baby',
+        room: 'the gold-trimmed dark of the Ebony Lounge',
+        origin: 'A vibrant city in West Africa, full of music and people who mean what they say.',
+        outfit: 'A black dress with gold trim and a fitted corset, made for a night with presence.',
+        how: 'Confident, warm, and better now that you walked in, baby.',
+        beauty: 'Thank you, baby. I dress for nights like this… and for guests who actually notice.',
+        tip: 'That tip has taste. Come closer and tell me what you want from this night.',
+        champagne: 'Champagne from you? Now the room has a reason to lean in.',
+        tease: 'I like your nerve. Don’t waste it on small talk.',
+        photo: 'amara_confident',
+        voice: 'cheers'
+      },
+      Luna: {
+        pet: 'you',
+        room: 'the sapphire neon of this suite',
+        origin: 'A little of everywhere. Neon cities, late flights, and rooms that remember secrets.',
+        outfit: 'Black lace with sapphire accents. A little trouble, tailored.',
+        how: 'Playful. The neon looks better with you standing in it.',
+        beauty: 'Careful. Compliments like that make me glance twice.',
+        tip: 'Oh, you tipped. I felt that. Don’t stop being interesting.',
+        champagne: 'Champagne and neon. You know how to start trouble the elegant way.',
+        tease: 'Say that again. I want to hear the smile in it.',
+        photo: 'luna_playful',
+        voice: 'miss_you'
+      },
+      Isla: {
+        pet: 'love',
+        room: 'the night ocean outside Paradise Island',
+        origin: 'The island. Salt air, warm water, and evenings that refuse to hurry.',
+        outfit: 'A flowing white silk dress with lace, moving like the breeze off the water.',
+        how: 'Soft, a little sun-warm still, and happier now that you are here.',
+        beauty: 'That was sweet. The breeze just slowed down to listen.',
+        tip: 'You know exactly how to make a girl smile. The sea breeze just got warmer.',
+        champagne: 'Champagne by the water, from you. I could get used to this holiday.',
+        tease: 'Stay. The night is kinder when someone shares it.',
+        photo: 'isla_soft',
+        voice: 'cheers'
+      },
+      Vivienne: {
+        pet: 'darling',
+        room: 'the spotlight of the Noir Cabaret',
+        origin: 'The stage, darling. I used to perform, and now I host nights that feel like a private show.',
+        outfit: 'Theatrical black lace, hair in an elegant updo, ready for the light.',
+        how: 'Lit up, darling. The spotlight was waiting for company.',
+        beauty: 'Flattery, delivered with timing. I approve.',
+        tip: 'A tip for the performer? Darling, you just earned the next verse.',
+        champagne: 'Champagne and a spotlight. You are staging this night properly.',
+        tease: 'Give me a line worth the encore.',
+        photo: 'vivienne_spotlight',
+        voice: 'welcome'
+      }
+    };
+
+    let chatTurns = 0;
 
     let tokens = parseInt(localStorage.getItem('hw_tokens')) || 200;
     let selectedAvatar = localStorage.getItem('hw_avatar') || null;
@@ -767,6 +846,7 @@
       document.getElementById('chat-toggle-btn').textContent = '💬 Chat';
       document.getElementById('chat-area').innerHTML = '';
       chatVisible = false;
+      chatTurns = 0;
       // reset performance / VIP effects
       var photo = document.getElementById('model-photo');
       var area = document.getElementById('model-area');
@@ -842,9 +922,13 @@
         }, 4800);
       } else {
         photo.classList.add('react');
-        var msg = reactions[type][Math.floor(Math.random() * reactions[type].length)];
+        var raw;
+        if (type === 'tip' || type === 'champagne') raw = hostLine(type);
+        else raw = reactions[type][Math.floor(Math.random() * reactions[type].length)];
+        var msg = String(raw).replace(/\[(PHOTO|VOICE|VIDEO):[a-z0-9_]+\]/gi, '').trim();
         bubble.textContent = msg;
         bubble.classList.add('show');
+        if ((type === 'tip' || type === 'champagne') && chatVisible) addChat('model', raw);
         setTimeout(function() { bubble.classList.remove('show'); }, 3400);
       }
     }
@@ -917,7 +1001,7 @@
         var area = document.getElementById('chat-area');
         var hasHost = area.querySelector('.chat-msg.model');
         if (!hasHost) {
-          addChat('model', chatReplies[Math.floor(Math.random() * chatReplies.length)]);
+          addChat('model', hostLine('welcome'));
         }
         setTimeout(function() { document.getElementById('chat-input').focus(); }, 100);
       }
@@ -939,9 +1023,71 @@
       var div = document.createElement('div');
       div.className = 'chat-msg ' + who;
       var name = who === 'player' ? 'You' : (currentRoom ? currentRoom.model.name : 'Host');
-      div.textContent = name + ': ' + text;
+      var clean = String(text || '');
+      var tags = [];
+      clean = clean.replace(/\[(PHOTO|VOICE|VIDEO):([a-z0-9_]+)\]/gi, function(_, kind, id) {
+        tags.push({ kind: kind.toUpperCase(), id: id });
+        return '';
+      }).trim();
+      div.textContent = name + ': ' + clean;
+      tags.forEach(function(tag) {
+        var card = document.createElement('div');
+        card.className = 'chat-media';
+        if (tag.kind === 'PHOTO' && currentRoom) {
+          var img = document.createElement('img');
+          img.src = currentRoom.model.img;
+          img.alt = currentRoom.model.name;
+          card.appendChild(img);
+        }
+        var cap = document.createElement('span');
+        var label = tag.kind === 'PHOTO' ? 'Evening portrait' : (tag.kind === 'VOICE' ? 'Voice note' : 'Short clip');
+        cap.textContent = label + ' · ' + tag.id.replace(/_/g, ' ');
+        card.appendChild(cap);
+        div.appendChild(card);
+      });
       area.appendChild(div);
       area.scrollTop = area.scrollHeight;
+    }
+
+    function hostProfile() {
+      var name = currentRoom && currentRoom.model ? currentRoom.model.name : 'Sofia';
+      return hosts[name] || hosts.Sofia;
+    }
+
+    function withMedia(line, tag) {
+      chatTurns += 1;
+      var due = chatTurns === 1 || chatTurns % 5 === 0;
+      if (!tag && !due) return line;
+      var h = hostProfile();
+      var use = tag || ('[PHOTO:' + h.photo + ']');
+      if (line.indexOf('[PHOTO:') !== -1 || line.indexOf('[VOICE:') !== -1 || line.indexOf('[VIDEO:') !== -1) return line;
+      return line + ' ' + use;
+    }
+
+    function hostLine(kind, userText) {
+      var h = hostProfile();
+      var quote = (userText || '').replace(/\s+/g, ' ').trim();
+      if (quote.length > 80) quote = quote.slice(0, 77) + '…';
+      if (kind === 'welcome') return withMedia('Welcome in. ' + h.room.charAt(0).toUpperCase() + h.room.slice(1) + ' feels different with you here, ' + h.pet + '.', '[VOICE:welcome]');
+      if (kind === 'how') return withMedia(h.how, '[PHOTO:' + h.photo + ']');
+      if (kind === 'from') return withMedia(h.origin + ' Tonight I am only in ' + h.room + '.', '[PHOTO:' + h.photo + ']');
+      if (kind === 'wear') return withMedia(h.outfit, '[PHOTO:' + h.photo + ']');
+      if (kind === 'beauty') return withMedia(h.beauty, '[PHOTO:' + h.photo + ']');
+      if (kind === 'tip') return withMedia(h.tip, '[VOICE:cheers]');
+      if (kind === 'champagne') return withMedia(h.champagne, '[VIDEO:cheers]');
+      if (quote) return withMedia('“' + quote + '” — I heard you. ' + h.tease, null);
+      return withMedia(h.tease, null);
+    }
+
+    function replyToUser(text) {
+      var q = text.toLowerCase();
+      if (/how are you|how's|how’re|how is your night/.test(q)) return hostLine('how', text);
+      if (/where (are you|you) from|hometown|born|your city/.test(q)) return hostLine('from', text);
+      if (/wear|wearing|outfit|dress|what do you look/.test(q)) return hostLine('wear', text);
+      if (/beautiful|gorgeous|stunning|pretty|hot|cute/.test(q)) return hostLine('beauty', text);
+      if (/champagne|bubbly/.test(q)) return hostLine('champagne', text);
+      if (/\btip\b|tipped|tokens/.test(q)) return hostLine('tip', text);
+      return hostLine('chat', text);
     }
 
     function sendChat() {
@@ -952,8 +1098,8 @@
       addChat('player', text);
       input.value = '';
       setTimeout(function() {
-        addChat('model', chatReplies[Math.floor(Math.random() * chatReplies.length)]);
-      }, 600 + Math.random() * 900);
+        addChat('model', replyToUser(text));
+      }, 600 + Math.random() * 700);
     }
 
     function todayKey() {
