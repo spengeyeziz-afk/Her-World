@@ -8,6 +8,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Her World" />
+  <meta name="admob-app-id" content="ca-app-pub-8801782508971606~6755686350" />
   <link rel="manifest" href="/manifest.webmanifest" />
   <link rel="icon" href="/icon-192.png" type="image/png" />
   <link rel="apple-touch-icon" href="/icon-192.png" />
@@ -614,19 +615,11 @@
   <div class="modal-overlay" id="ad-modal">
     <div class="modal">
       <h3>Earn Free Tokens</h3>
-      <p>Watch a short video to receive 50 Tokens?</p>
+      <p>Watch a short video to earn 50 Tokens?</p>
       <div class="modal-actions">
         <button class="btn btn-secondary" onclick="closeAdPrompt()">Cancel</button>
         <button class="btn btn-primary" onclick="confirmWatchAd()">Watch</button>
       </div>
-    </div>
-  </div>
-
-  <div class="modal-overlay" id="ad-player">
-    <div class="modal">
-      <h3>Sponsored moment</h3>
-      <div class="ad-stage" id="ad-stage">Playing</div>
-      <p id="ad-timer">Please watch to the end to earn 50 Tokens.</p>
     </div>
   </div>
 
@@ -776,12 +769,22 @@
     const disclosedHosts = {};
 
     const ADMOB = {
-      appId: 'ca-app-pub-3940256099942544~3347511713',
-      rewardedAdUnitId: 'ca-app-pub-3940256099942544/5224354917',
+      appId: 'ca-app-pub-8801782508971606~6755686350',
+      rewardedAdUnitId: 'ca-app-pub-8801782508971606/6508274349',
+      interstitialAdUnitId: 'ca-app-pub-8801782508971606/4265234904',
       rewardTokens: 50,
       dailyLimit: 4
     };
     let rewardGrantedThisAd = false;
+    let rewardFailNotified = false;
+    let rewardAttempt = 0;
+    let chatOpenedThisVisit = false;
+    let chatExitsSinceAd = 0;
+    let lastInterstitialAt = 0;
+    let interstitialReady = false;
+    let interstitialListenersBound = false;
+    let rewardListenersBound = false;
+    const INTERSTITIAL_GAP_MS = 4.5 * 60 * 1000;
 
     function init() {
       const p = document.getElementById('particles');
@@ -818,6 +821,7 @@
 
       updateTokens();
       refreshAdNote();
+      initAdMob();
     }
 
     function selectAvatar(id, el) {
@@ -847,6 +851,7 @@
       document.getElementById('chat-area').innerHTML = '';
       chatVisible = false;
       chatTurns = 0;
+      chatOpenedThisVisit = false;
       // reset performance / VIP effects
       var photo = document.getElementById('model-photo');
       var area = document.getElementById('model-area');
@@ -996,6 +1001,7 @@
       var btn = document.getElementById('chat-toggle-btn');
       panel.style.display = chatVisible ? 'block' : 'none';
       btn.textContent = chatVisible ? '💬 Hide Chat' : '💬 Chat';
+      if (chatVisible) chatOpenedThisVisit = true;
       if (chatVisible) {
         ensureAiDisclosure();
         var area = document.getElementById('chat-area');
@@ -1162,58 +1168,122 @@
       toast('+50 Tokens earned! Enjoy your night.');
     }
 
-    function showRewardedAd() {
-      rewardGrantedThisAd = false;
+    function getAdMob() {
       var plugins = window.Capacitor && window.Capacitor.Plugins;
-      var AdMob = plugins && plugins.AdMob;
-      if (AdMob && typeof AdMob.prepareRewardVideoAd === 'function') {
-        AdMob.prepareRewardVideoAd({
-          adId: ADMOB.rewardedAdUnitId,
-          isTesting: ADMOB.rewardedAdUnitId.indexOf('3940256099942544') !== -1
-        }).then(function () {
-          if (typeof AdMob.addListener === 'function') {
-            AdMob.addListener('onRewardedVideoAdReward', function () { onUserEarnedReward(); });
-            AdMob.addListener('onRewarded', function () { onUserEarnedReward(); });
-          }
-          return AdMob.showRewardVideoAd();
-        }).catch(function () {
-          toast('The video could not be loaded. Please try again.');
-        });
-        return;
-      }
-      if (typeof window.adBreak === 'function') {
-        window.adBreak({
-          type: 'reward',
-          name: 'free-tokens',
-          beforeReward: function (showAdFn) { showAdFn(); },
-          adViewed: function () { onUserEarnedReward(); },
-          adDismissed: function () {
-            if (!rewardGrantedThisAd) toast('Watch the full video to earn tokens.');
-          }
-        });
-        return;
-      }
-      playFallbackRewardedAd();
+      if (plugins && plugins.AdMob) return plugins.AdMob;
+      if (window.AdMob && typeof window.AdMob.initialize === 'function') return window.AdMob;
+      return null;
     }
 
-    function playFallbackRewardedAd() {
-      var overlay = document.getElementById('ad-player');
-      var stage = document.getElementById('ad-stage');
-      var timer = document.getElementById('ad-timer');
-      var left = 8;
-      overlay.classList.add('show');
-      stage.textContent = 'Playing';
-      timer.textContent = 'Please watch to the end to earn 50 Tokens. ' + left + 's';
-      var tick = setInterval(function () {
-        left -= 1;
-        if (left > 0) {
-          timer.textContent = 'Please watch to the end to earn 50 Tokens. ' + left + 's';
-          return;
-        }
-        clearInterval(tick);
-        overlay.classList.remove('show');
-        onUserEarnedReward();
-      }, 1000);
+    function initAdMob() {
+      var AdMob = getAdMob();
+      if (!AdMob || typeof AdMob.initialize !== 'function') return;
+      Promise.resolve(AdMob.initialize({
+        appId: ADMOB.appId,
+        initializeForTesting: false,
+        requestTrackingAuthorization: false
+      })).then(function () {
+        bindRewardListeners(AdMob);
+        bindInterstitialListeners(AdMob);
+        preloadInterstitial();
+      }).catch(function () {});
+    }
+
+    function bindRewardListeners(AdMob) {
+      if (rewardListenersBound || !AdMob || typeof AdMob.addListener !== 'function') return;
+      rewardListenersBound = true;
+      AdMob.addListener('onRewardedVideoAdReward', function () { onUserEarnedReward(); });
+      AdMob.addListener('onRewarded', function () { onUserEarnedReward(); });
+      AdMob.addListener('onRewardedVideoAdFailedToLoad', function () { onRewardUnavailable(); });
+      AdMob.addListener('onRewardedVideoAdFailedToShow', function () { onRewardUnavailable(); });
+      AdMob.addListener('onRewardedVideoAdDismissed', function () {
+        if (!rewardGrantedThisAd) onRewardUnavailable();
+      });
+    }
+
+    function bindInterstitialListeners(AdMob) {
+      if (interstitialListenersBound || !AdMob || typeof AdMob.addListener !== 'function') return;
+      interstitialListenersBound = true;
+      AdMob.addListener('onInterstitialAdLoaded', function () { interstitialReady = true; });
+      AdMob.addListener('onInterstitialAdFailedToLoad', function () { interstitialReady = false; });
+      AdMob.addListener('onInterstitialAdFailedToShow', function () { interstitialReady = false; preloadInterstitial(); });
+      AdMob.addListener('onInterstitialAdDismissed', function () { interstitialReady = false; preloadInterstitial(); });
+    }
+
+    function preloadInterstitial() {
+      var AdMob = getAdMob();
+      if (!AdMob || typeof AdMob.prepareInterstitial !== 'function') return;
+      interstitialReady = false;
+      Promise.resolve(AdMob.prepareInterstitial({
+        adId: ADMOB.interstitialAdUnitId,
+        isTesting: false
+      })).then(function () {
+        interstitialReady = true;
+      }).catch(function () {
+        interstitialReady = false;
+      });
+    }
+
+    function leaveLounge() {
+      var openedChat = chatOpenedThisVisit || chatVisible;
+      if (chatVisible) {
+        chatVisible = false;
+        var panel = document.getElementById('chat-panel');
+        var btn = document.getElementById('chat-toggle-btn');
+        if (panel) panel.style.display = 'none';
+        if (btn) btn.textContent = '💬 Chat';
+      }
+      chatOpenedThisVisit = false;
+      showScreen('district-screen');
+      if (openedChat) maybeShowInterstitial();
+    }
+
+    function maybeShowInterstitial() {
+      chatExitsSinceAd += 1;
+      var elapsed = lastInterstitialAt ? (Date.now() - lastInterstitialAt) : Number.POSITIVE_INFINITY;
+      var dueByCount = chatExitsSinceAd >= 3;
+      var dueByTime = elapsed >= INTERSTITIAL_GAP_MS;
+      if (!dueByCount && !dueByTime) return;
+      var AdMob = getAdMob();
+      if (!AdMob || !interstitialReady || typeof AdMob.showInterstitial !== 'function') {
+        preloadInterstitial();
+        return;
+      }
+      interstitialReady = false;
+      chatExitsSinceAd = 0;
+      lastInterstitialAt = Date.now();
+      Promise.resolve(AdMob.showInterstitial()).catch(function () {
+        preloadInterstitial();
+      });
+    }
+
+    function onRewardUnavailable() {
+      if (rewardGrantedThisAd || rewardFailNotified) return;
+      rewardFailNotified = true;
+      toast('Ad not available right now. Please try again later.');
+    }
+
+    function showRewardedAd() {
+      rewardGrantedThisAd = false;
+      rewardFailNotified = false;
+      rewardAttempt += 1;
+      var attempt = rewardAttempt;
+      var AdMob = getAdMob();
+      if (!AdMob || typeof AdMob.prepareRewardVideoAd !== 'function') {
+        onRewardUnavailable();
+        return;
+      }
+      bindRewardListeners(AdMob);
+      Promise.resolve(AdMob.prepareRewardVideoAd({
+        adId: ADMOB.rewardedAdUnitId,
+        isTesting: false
+      })).then(function () {
+        if (attempt !== rewardAttempt) return;
+        return AdMob.showRewardVideoAd();
+      }).catch(function () {
+        if (attempt !== rewardAttempt) return;
+        onRewardUnavailable();
+      });
     }
 
     function toast(msg) {
